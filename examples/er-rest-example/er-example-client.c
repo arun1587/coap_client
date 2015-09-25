@@ -118,13 +118,8 @@ PROCESS_THREAD(coap_client_example, ev, data)
 
   etimer_set(&et, TOGGLE_INTERVAL * CLOCK_SECOND);
 
-#if PLATFORM_HAS_BUTTON
-  SENSORS_ACTIVATE(button_sensor);
-  printf("Press a button to request %s\n", service_urls[uri_switch]);
-#endif
-
   system("sudo ip address add fdfd::1/64 dev tap0");
-  while(1) {
+  //while(1) {
     PROCESS_YIELD();
 
     if (etimer_expired(&et)) {
@@ -139,37 +134,17 @@ PROCESS_THREAD(coap_client_example, ev, data)
       //coap_set_payload(request, (uint8_t *)msg, sizeof(msg)-1);
 
 
-      PRINT6ADDR(&server_ipaddr);
-      PRINTF(" : %u\n", UIP_HTONS(REMOTE_PORT));
+      //PRINT6ADDR(&server_ipaddr);
+      //PRINTF(" : %u\n", UIP_HTONS(REMOTE_PORT));
 
       COAP_BLOCKING_REQUEST(&server_ipaddr, REMOTE_PORT, request, client_chunk_handler);
 
-      printf("\n--Done--\n");
+      printf("\n--Done--ERBIUM CLIENT\n");
 
       etimer_reset(&et);
 
-#if PLATFORM_HAS_BUTTON
-    } else if (ev == sensors_event && data == &button_sensor) {
-
-      /* send a request to notify the end of the process */
-
-      coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
-      coap_set_header_uri_path(request, service_urls[uri_switch]);
-
-      printf("--Requesting %s--\n", service_urls[uri_switch]);
-
-      PRINT6ADDR(&server_ipaddr);
-      PRINTF(" : %u\n", UIP_HTONS(REMOTE_PORT));
-
-      COAP_BLOCKING_REQUEST(&server_ipaddr, REMOTE_PORT, request, client_chunk_handler);
-
-      printf("\n--Done--\n");
-
-      uri_switch = (uri_switch+1) % NUMBER_OF_URLS;
-#endif
-
     }
-  }
+ // }
 
   PROCESS_END();
 }
