@@ -109,6 +109,7 @@ coap_receive(void)
       /* Handle requests. */
       if (message->code >= COAP_GET && message->code <= COAP_DELETE)
       {
+	PRINTF("Arun: code = %d\n", message->code);
         /* Use transaction buffer for response to confirmable request. */
         if ( (transaction = coap_new_transaction(message->mid, &UIP_IP_BUF->srcipaddr, UIP_UDP_BUF->srcport)) )
         {
@@ -122,6 +123,7 @@ coap_receive(void)
           {
             /* Reliable CON requests are answered with an ACK. */
             coap_init_message(response, COAP_TYPE_ACK, CONTENT_2_05, message->mid);
+	    PRINTF("Arun: TYPE = CON, Reliable\n");
           }
           else
           {
@@ -146,6 +148,7 @@ coap_receive(void)
           /* Invoke resource handler. */
           if (service_cbk)
           {
+	    PRINTF("Arun: Invoke resource handler\n");
             /* Call REST framework and check if found and allowed. */
             if (service_cbk(message, response, transaction->packet+COAP_MAX_HEADER_SIZE, block_size, &new_offset))
             {
