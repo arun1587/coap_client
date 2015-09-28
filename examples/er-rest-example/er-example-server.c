@@ -6,7 +6,7 @@
 
 
 /* Define which resources to include to meet memory constraints. */
-#define REST_RES_HELLO 1
+
 #define REST_RES_AUTH 1
 
 #include "erbium.h"
@@ -51,48 +51,7 @@ auth_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_
 }
 #endif
 /******************************************************************************/
-#if REST_RES_HELLO
-/*
- * Resources are defined by the RESOURCE macro.
- * Signature: resource name, the RESTful methods it handles, and its URI path (omitting the leading slash).
- */
 
-RESOURCE(helloworld, METHOD_GET|METHOD_POST|METHOD_PUT, "hello", "title=\"Hello world: ?len=0..\";rt=\"Text\"");
-
-/*
- * A handler function named [resource name]_handler must be implemented for each RESOURCE.
- * A buffer for the response payload is provided through the buffer pointer. Simple resources can ignore
- * preferred_size and offset, but must respect the REST_MAX_CHUNK_SIZE limit for the buffer.
- * If a smaller block size is requested for CoAP, the REST framework automatically splits the data.
- */
-void
-helloworld_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
-{
-  const char *len = NULL;
-  /* Some data that has the length up to REST_MAX_CHUNK_SIZE. For more, see the chunk resource. */
-  char const * const message = "Hello VWorld! ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy";
-  int length = 12; /*           |<-------->| */
-
-  /* The query string can be retrieved by rest_get_query() or parsed for its key-value pairs. */
-  if (REST.get_query_variable(request, "len", &len)) {
-    length = atoi(len);
-    if (length<0) length = 0;
-    if (length>REST_MAX_CHUNK_SIZE) length = REST_MAX_CHUNK_SIZE;
-    memcpy(buffer, message, length);
-  } else {
-    memcpy(buffer, message, length);
-  }
-
-  REST.set_header_content_type(response, REST.type.TEXT_PLAIN); /* text/plain is the default, hence this option could be omitted. */
-  REST.set_header_etag(response, (uint8_t *) &length, 1);
-  REST.set_response_payload(response, buffer, length);
-}
-
-#endif
-
-void sendGET () {
-
-}
 
 void
 client_chunk_handler(void *response)
@@ -125,15 +84,12 @@ PROCESS_THREAD(rest_server_example, ev, data)
   rest_init_engine();
 
   /* Activate the application-specific resources. */
-#if REST_RES_HELLO
-  rest_activate_resource(&resource_helloworld);
-#endif
+
 #if REST_RES_AUTH
   rest_activate_resource(&resource_auth);
 #endif
   system("sudo ip address add fdfd::1/64 dev tap0");
   /* Define application-specific events here. */
-  sendGET();
 
   static coap_packet_t grequest[1]; 
   uip_ipaddr_t server_ipaddr;
