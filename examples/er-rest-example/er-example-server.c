@@ -30,22 +30,44 @@
 #define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfdfd, 0, 0, 0, 0, 0, 0, 0x0001) /* tap0 inf */
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
+// sample define the eap msg structure
+// try to decode the msg, and print the code in the first PUT message from ./openpaa
+
+struct eap_msg{
+        unsigned char code;
+        unsigned char id;
+        unsigned short length;
+        unsigned char method;
+}__attribute__((packed));
+
+
 
 /* leading and ending slashes only for demo purposes, get cropped automatically when setting the Uri-Path */
 char* service_urls[NUMBER_OF_URLS] = {"/auth"};
-
+uint8_t* msk;
 
 #if REST_RES_AUTH
 RESOURCE(auth, METHOD_GET|METHOD_POST|METHOD_PUT, "auth", "title=\"EAP over CoAP\"");
 void
 auth_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
+ 
+  uint16_t payload_len = 0;
+  uint8_t* payload = NULL;
 
   rest_resource_flags_t method = REST.get_method_type(request);
   PRINTF("in AUTH HANDLER\n");
   if (method == METHOD_POST) {
     coap_set_status_code (response, CREATED_2_01);
+    // TBD: Initialize the EAP state machine
   } else if (method == METHOD_PUT) {
     coap_set_status_code (response, CHANGED_2_04);
+    // TBD: if !eapKeyAvailable, then proceed with EAP msg parsing and exchanges.
+        // User ID, PSK_MSG2, PSK_MSG3
+       payload_len = coap_get_payload(request, &payload);
+       PRINTF("\n\nPAYLOAD LENGTH = %d, CODE: = %d \n", payload_len, ((struct eap_msg*) payload)->code);
+       // build the identity as "user" 
+    // else
+       // EAP completed, derive MSK and COAP_AUTH_KEY
   }
   PRINTF("END AUTH HANDLER\n");
 }
@@ -88,13 +110,16 @@ PROCESS_THREAD(rest_server_example, ev, data)
 #if REST_RES_AUTH
   rest_activate_resource(&resource_auth);
 #endif
-  system("sudo ip address add fdfd::1/64 dev tap0");
+  if (-1 != system("sudo ip address add fdfd::1/64 dev tap0")) {
+	PRINTF("Successfully configured fdfd::1 on TAP0 interface\n");
+  } else {PRINTF("ERROR: configuring IP on TAP0 interface\n");};
   /* Define application-specific events here. */
-
+ 
+  struct eap_msg eap_recv_data;
   static coap_packet_t grequest[1]; 
   uip_ipaddr_t server_ipaddr;
   SERVER_NODE(&server_ipaddr);
-  // send initial GET message
+  // send initial GET message to Authenticator ./openpaa
   coap_init_message(grequest, COAP_TYPE_CON, COAP_GET, 0 );
   coap_set_header_uri_path(grequest, service_urls[0]);
   COAP_BLOCKING_REQUEST(&server_ipaddr, REMOTE_PORT, grequest, client_chunk_handler);
