@@ -31,6 +31,10 @@ CFLAGS += -DREST_MAX_CHUNK_SIZE=1024
 CFLAGS += -DCOAP_MAX_HEADER_SIZE=640
 endif
 
+# EAP functions
+PROJECTDIRS += EAP/
+PROJECT_SOURCEFILES += eap-peer.c aes.c  eap-psk.c  eax.c
+
 # linker optimizations
 SMALL=1
 

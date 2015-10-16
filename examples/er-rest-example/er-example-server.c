@@ -3,6 +3,10 @@
 #include <string.h>
 #include "contiki.h"
 #include "contiki-net.h"
+#include "EAP/include.h"
+#include "EAP/eap-peer.h"
+#include "EAP/eap-psk.h"
+
 
 
 /* Define which resources to include to meet memory constraints. */
@@ -33,6 +37,7 @@
 // sample define the eap msg structure
 // try to decode the msg, and print the code in the first PUT message from ./openpaa
 
+/*
 struct eap_msg{
         unsigned char code;
         unsigned char id;
@@ -40,11 +45,11 @@ struct eap_msg{
         unsigned char method;
 }__attribute__((packed));
 
-
+*/
 
 /* leading and ending slashes only for demo purposes, get cropped automatically when setting the Uri-Path */
 char* service_urls[NUMBER_OF_URLS] = {"/auth"};
-uint8_t* msk;
+//uint8_t* msk_key;
 
 #if REST_RES_AUTH
 RESOURCE(auth, METHOD_GET|METHOD_POST|METHOD_PUT, "auth", "title=\"EAP over CoAP\"");
@@ -59,6 +64,10 @@ auth_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_
   if (method == METHOD_POST) {
     coap_set_status_code (response, CREATED_2_01);
     // TBD: Initialize the EAP state machine
+   memset(&msk_key,0, MSK_LENGTH);
+   eapRestart=TRUE;
+   eap_peer_sm_step(NULL);
+ 
   } else if (method == METHOD_PUT) {
     coap_set_status_code (response, CHANGED_2_04);
     // TBD: if !eapKeyAvailable, then proceed with EAP msg parsing and exchanges.
