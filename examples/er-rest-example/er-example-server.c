@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "contiki.h"
 #include "contiki-net.h"
 #include "EAP/include.h"
@@ -31,7 +32,7 @@
 #endif
 
 #define NUMBER_OF_URLS 1
-#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfdfd, 0, 0, 0, 0, 0, 0, 0x0001) /* tap0 inf */
+#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfdfd, 0, 0, 0, 0, 0, 0, 0x0001)	/* tap0 inf */
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
 // sample define the eap msg structure
@@ -48,94 +49,158 @@ struct eap_msg{
 */
 
 /* leading and ending slashes only for demo purposes, get cropped automatically when setting the Uri-Path */
-char* service_urls[NUMBER_OF_URLS] = {"/auth"};
+char *service_urls[NUMBER_OF_URLS] = { "/auth" };
+
 //uint8_t* msk_key;
 
-#if REST_RES_AUTH
-RESOURCE(auth, METHOD_GET|METHOD_POST|METHOD_PUT, "auth", "title=\"EAP over CoAP\"");
-void
-auth_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
- 
-  uint16_t payload_len = 0;
-  uint8_t* payload = NULL;
 
-  rest_resource_flags_t method = REST.get_method_type(request);
-  PRINTF("in AUTH HANDLER\n");
-  if (method == METHOD_POST) {
-    coap_set_status_code (response, CREATED_2_01);
-    // TBD: Initialize the EAP state machine
-   memset(&msk_key,0, MSK_LENGTH);
-   eapRestart=TRUE;
-   eap_peer_sm_step(NULL);
- 
-  } else if (method == METHOD_PUT) {
-    coap_set_status_code (response, CHANGED_2_04);
-    // TBD: if !eapKeyAvailable, then proceed with EAP msg parsing and exchanges.
-        // User ID, PSK_MSG2, PSK_MSG3
-       payload_len = coap_get_payload(request, &payload);
-       PRINTF("\n\nPAYLOAD LENGTH = %d, CODE: = %d \n", payload_len, ((struct eap_msg*) payload)->code);
-       // build the identity as "user" 
-    // else
-       // EAP completed, derive MSK and COAP_AUTH_KEY
-  }
-  PRINTF("END AUTH HANDLER\n");
+void printf_hex(unsigned char *hex, unsigned int l)
+{
+        int i;
+        if (hex != NULL){
+                for (i=0; i < l; i++)
+                        printf("%02x",hex[i]);
+
+                printf("\n");
+        }
+}
+
+#if REST_RES_AUTH
+RESOURCE (auth, METHOD_GET | METHOD_POST | METHOD_PUT, "auth",
+	  "title=\"EAP over CoAP\"");
+void
+auth_handler (void *request, void *response, uint8_t * buffer,
+	      uint16_t preferred_size, int32_t * offset)
+{
+
+  uint16_t payload_len = 0;
+  uint8_t *payload = NULL;
+  bool isTime = false;
+  int len;
+
+  rest_resource_flags_t method = REST.get_method_type (request);
+  switch (method)
+    {
+    case METHOD_POST:
+    // NEEDS FIX
+    // While sending the ACK, the payload and option fields 
+    // need to be retained from the request. 
+    // currently, the options and the payload are zero.
+
+      coap_set_status_code (response, CREATED_2_01);
+      memset (&msk_key, 0, MSK_LENGTH);
+      printf_hex (msk_key, 16);
+      eapRestart = TRUE;
+      eap_peer_sm_step (NULL);
+      break;
+
+
+    case METHOD_PUT:
+    // NEEDS FIX
+    // While sending the ACK, option field is zero
+    // and the userID is not in the payload, as below. 
+    // Expected: 
+    // Payload of 9 bytes
+    // Value: "\02\ffffffef\00\09\01user"
+
+    // Actual:
+    // Payload of 5 bytes
+    // Value: "\026\00\09\01"
+
+      coap_set_status_code (response, CHANGED_2_04);
+      payload_len = coap_get_payload (request, &payload);
+      PRINTF ("\n\nPAYLOAD LENGTH = %d, CODE: = %d \n", payload_len,
+	      ((struct eap_msg *) payload)->code);
+      if (!eapKeyAvailable) {
+	  printf ("---------------\nEAP EXCHANGE IN COURSE \n");
+	  eapReq = TRUE;
+	  eap_peer_sm_step (payload);
+	  if (eapResp) {
+	      printf ("Hay EAP response %d\n",
+		      ntohs (((struct eap_msg *) eapRespData)->length));
+	      printf_hex (eapRespData, len =
+			  ntohs (((struct eap_msg *) eapRespData)->length));
+	  } else {
+	      printf ("NO HAY EAP RESPONSE\n");
+	  }
+	  // response->setPayload (eapRespData, len);
+	  coap_set_payload(response, eapRespData, payload_len);
+                                                                
+      } else {
+	  // EAP EXCHANGE FINISHED
+	  printf ("EAP EXCHANGE FINISHED\n");
+	  printf ("msk: \n");
+	  printf_hex (msk_key, 16);
+	  isTime = true;
+      } break;
+    
+    default:
+      break;
+    }
 }
 #endif
 /******************************************************************************/
 
 
 void
-client_chunk_handler(void *response)
+client_chunk_handler (void *response)
 {
   const uint8_t *chunk;
 
-  int len = coap_get_payload(response, &chunk);
-  printf("|%.*s", len, (char *)chunk);
+  int len = coap_get_payload (response, &chunk);
+  printf ("|%.*s", len, (char *) chunk);
 }
 
 
 /******************************************************************************/
 
-PROCESS(rest_server_example, "Erbium Example Server");
-AUTOSTART_PROCESSES(&rest_server_example);
+PROCESS (rest_server_example, "Erbium Example Server");
+AUTOSTART_PROCESSES (&rest_server_example);
 
-PROCESS_THREAD(rest_server_example, ev, data)
+PROCESS_THREAD (rest_server_example, ev, data)
 {
-  PROCESS_BEGIN();
+  PROCESS_BEGIN ();
 
 
-  PRINTF("Starting Erbium Example Server\n");
+  PRINTF ("Starting Erbium Example Server\n");
 
-  PRINTF("uIP buffer: %u\n", UIP_BUFSIZE);
-  PRINTF("LL header: %u\n", UIP_LLH_LEN);
-  PRINTF("IP+UDP header: %u\n", UIP_IPUDPH_LEN);
-  PRINTF("REST max chunk: %u\n", REST_MAX_CHUNK_SIZE);
+  PRINTF ("uIP buffer: %u\n", UIP_BUFSIZE);
+  PRINTF ("LL header: %u\n", UIP_LLH_LEN);
+  PRINTF ("IP+UDP header: %u\n", UIP_IPUDPH_LEN);
+  PRINTF ("REST max chunk: %u\n", REST_MAX_CHUNK_SIZE);
 
   /* Initialize the REST engine. */
-  rest_init_engine();
+  rest_init_engine ();
 
   /* Activate the application-specific resources. */
 
 #if REST_RES_AUTH
-  rest_activate_resource(&resource_auth);
+  rest_activate_resource (&resource_auth);
 #endif
-  if (-1 != system("sudo ip address add fdfd::1/64 dev tap0")) {
-	PRINTF("Successfully configured fdfd::1 on TAP0 interface\n");
-  } else {PRINTF("ERROR: configuring IP on TAP0 interface\n");};
+  if (-1 != system ("sudo ip address add fdfd::1/64 dev tap0"))
+    {
+      PRINTF ("Successfully configured fdfd::1 on TAP0 interface\n");
+    }
+  else
+    {
+      PRINTF ("ERROR: configuring IP on TAP0 interface\n");
+    };
   /* Define application-specific events here. */
- 
+
   struct eap_msg eap_recv_data;
-  static coap_packet_t grequest[1]; 
+  static coap_packet_t grequest[1];
   uip_ipaddr_t server_ipaddr;
-  SERVER_NODE(&server_ipaddr);
+  SERVER_NODE (&server_ipaddr);
   // send initial GET message to Authenticator ./openpaa
-  coap_init_message(grequest, COAP_TYPE_CON, COAP_GET, 0 );
-  coap_set_header_uri_path(grequest, service_urls[0]);
-  COAP_BLOCKING_REQUEST(&server_ipaddr, REMOTE_PORT, grequest, client_chunk_handler);
+  coap_init_message (grequest, COAP_TYPE_CON, COAP_GET, 0);
+  coap_set_header_uri_path (grequest, service_urls[0]);
+  COAP_BLOCKING_REQUEST (&server_ipaddr, REMOTE_PORT, grequest,
+			 client_chunk_handler);
 
-  while(1) {
-    PROCESS_WAIT_EVENT();
-  } /* while (1) */
+  while (1)
+    {
+      PROCESS_WAIT_EVENT ();
+    }				/* while (1) */
 
-  PROCESS_END();
+  PROCESS_END ();
 }
