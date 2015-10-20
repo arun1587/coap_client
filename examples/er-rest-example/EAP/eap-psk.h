@@ -53,7 +53,8 @@ static unsigned char nonce [16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0
 								   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
 
 
-static unsigned char psk[16]={'p', 'a', 's', 's', 'w', 'o', 'r', 'd', 'p', 'a', 's', 's', 'w', 'o', 'r', 'd'};
+//static unsigned char psk[16]={'p', 'a', 's', 's', 'w', 'o', 'r', 'd', 'p', 'a', 's', 's', 'w', 'o', 'r', 'd'};
+static unsigned char psk[16]={'T', 'e', 'l', 'e', 'c', 'o', 'm', 'B', 'r', 'e', 't', 'a', 'g', 'n', 'e', 'R'};
 
 
 static unsigned char data_ciphered [16];

@@ -35,24 +35,8 @@
 #define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfdfd, 0, 0, 0, 0, 0, 0, 0x0001)	/* tap0 inf */
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
-// sample define the eap msg structure
-// try to decode the msg, and print the code in the first PUT message from ./openpaa
 
-/*
-struct eap_msg{
-        unsigned char code;
-        unsigned char id;
-        unsigned short length;
-        unsigned char method;
-}__attribute__((packed));
-
-*/
-
-/* leading and ending slashes only for demo purposes, get cropped automatically when setting the Uri-Path */
 char *service_urls[NUMBER_OF_URLS] = { "/auth" };
-
-//uint8_t* msk_key;
-
 
 void printf_hex(unsigned char *hex, unsigned int l)
 {
@@ -82,10 +66,6 @@ auth_handler (void *request, void *response, uint8_t * buffer,
   switch (method)
     {
     case METHOD_POST:
-    // NEEDS FIX
-    // While sending the ACK, the payload and option fields 
-    // need to be retained from the request. 
-    // currently, the options and the payload are zero.
 
       coap_set_status_code (response, CREATED_2_01);
       memset (&msk_key, 0, MSK_LENGTH);
@@ -96,16 +76,6 @@ auth_handler (void *request, void *response, uint8_t * buffer,
 
 
     case METHOD_PUT:
-    // NEEDS FIX
-    // While sending the ACK, option field is zero
-    // and the userID is not in the payload, as below. 
-    // Expected: 
-    // Payload of 9 bytes
-    // Value: "\02\ffffffef\00\09\01user"
-
-    // Actual:
-    // Payload of 5 bytes
-    // Value: "\026\00\09\01"
 
       coap_set_status_code (response, CHANGED_2_04);
       payload_len = coap_get_payload (request, &payload);
@@ -123,8 +93,7 @@ auth_handler (void *request, void *response, uint8_t * buffer,
 	  } else {
 	      printf ("NO HAY EAP RESPONSE\n");
 	  }
-	  // response->setPayload (eapRespData, len);
-	  coap_set_payload(response, eapRespData, payload_len);
+	  coap_set_payload(response, eapRespData, ntohs (((struct eap_msg *) eapRespData)->length));
                                                                 
       } else {
 	  // EAP EXCHANGE FINISHED
